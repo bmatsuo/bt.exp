@@ -1,9 +1,3 @@
-/*
-Package bencoding provides bencoding serialization.
-
-The specification can be found at
-https://wiki.theory.org/BitTorrentSpecification#Bencoding
-*/
 package bencoding
 
 import (

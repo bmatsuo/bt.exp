@@ -4,6 +4,8 @@
 
 /*
 Package metainfo provides utilities to work with torrent metainfo files.
+
+This package API is unstable and may change without notice.
 */
 package metainfo
 
