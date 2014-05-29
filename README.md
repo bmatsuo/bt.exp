@@ -1,4 +1,7 @@
-Go packages for working with torrents
+Go packages for working with torrents.
+
+The goal is to create a solid base for building both clients and trackers.  But
+this project with probably never house either.
 
 **Note** these APIs are unstable
 
