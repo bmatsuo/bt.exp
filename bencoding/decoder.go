@@ -1,7 +1,10 @@
 /*
-Package bencode provides bencoding serialization.
+Package bencoding provides bencoding serialization.
+
+The specification can be found at
+https://wiki.theory.org/BitTorrentSpecification#Bencoding
 */
-package bencode
+package bencoding
 
 import (
 	"bytes"
@@ -14,7 +17,7 @@ import (
 // Unmarshal decodes the bencoded content of p into dst.
 // p must contain exactly one bencoded value.
 func Unmarshal(dst interface{}, p []byte) error {
-	dec := NewDecoder(p)
+	dec := NewDecoderBytes(p)
 	err := dec.nextObject(reflect.ValueOf(dst))
 	if err != nil {
 		return err
@@ -40,7 +43,7 @@ type Decoder struct {
 }
 
 //NewDecoder creates a new decoder for the given token stream
-func NewDecoder(b []byte) *Decoder {
+func NewDecoderBytes(b []byte) *Decoder {
 	return &Decoder{b, 0}
 }
 

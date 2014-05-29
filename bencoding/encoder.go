@@ -1,4 +1,4 @@
-package bencode
+package bencoding
 
 import (
 	"fmt"

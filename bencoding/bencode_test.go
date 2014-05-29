@@ -1,4 +1,4 @@
-package bencode
+package bencoding
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ func it(t *testing.T, in string, exp int64, exp_err bool) {
 	// Summarize a decoding, either expected or observed.
 	dsumm := func(s string, d interface{}) string { return fmt.Sprintf("%s->%d", s, d) }
 
-	d := NewDecoder([]byte(in))
+	d := NewDecoderBytes([]byte(in))
 	var i int64
 	err := d.Decode(&i)
 	if !exp_err {
@@ -45,7 +45,7 @@ func st(t *testing.T, in string, exp string, exp_err bool) {
 	// Summarize a decoding, either expected or observed.
 	dsumm := func(s string, d interface{}) string { return fmt.Sprintf("%s->%s", s, d) }
 
-	d := NewDecoder([]byte(in))
+	d := NewDecoderBytes([]byte(in))
 	var s string
 	err := d.Decode(&s)
 	if !exp_err {
@@ -71,7 +71,7 @@ func lt(t *testing.T, in string, exp []interface{}, exp_err bool) {
 	// Summarize a decoding, either expected or observed.
 	dsumm := func(s string, list []interface{}) string { return fmt.Sprintf("%s->%v", s, list) }
 
-	d := NewDecoder([]byte(in))
+	d := NewDecoderBytes([]byte(in))
 	var list []interface{}
 	err := d.Decode(&list)
 	if exp_err {
@@ -107,7 +107,7 @@ func dt(t *testing.T, in string, exp map[string]interface{}, exp_err bool) {
 	// Summarize a decoding, either expected or observed.
 	dsumm := func(s string, dict map[string]interface{}) string { return fmt.Sprintf("%s->%v", s, dict) }
 
-	d := NewDecoder([]byte(in))
+	d := NewDecoderBytes([]byte(in))
 	var dict map[string]interface{}
 	err := d.Decode(&dict)
 	if exp_err {

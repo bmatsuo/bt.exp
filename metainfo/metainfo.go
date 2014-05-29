@@ -13,8 +13,7 @@ package metainfo
 import (
 	"fmt"
 	"io/ioutil"
-
-	"github.com/bmatsuo/torrent/bencode"
+	"github.com/bmatsuo/torrent/bencoding"
 )
 
 // One file in a multi-file Metadata object.
@@ -64,7 +63,7 @@ func tryCast(name string, v interface{}, action func(interface{}), required bool
 
 func ParseMetainfo(p []byte) (meta *Metainfo, err error) {
 	var dict map[string]interface{}
-	err = bencode.Unmarshal(&dict, p)
+	err = bencoding.Unmarshal(&dict, p)
 	if err != nil {
 		return nil, err
 	}
