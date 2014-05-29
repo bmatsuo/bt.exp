@@ -8,13 +8,19 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/bmatsuo/torrent/bencoding"
 	"github.com/bmatsuo/torrent/metainfo"
 )
 
 func main() {
-	rec := flag.Bool("r", false, "add files in a directory recursively")
+	force := flag.Bool("f", false, "overwrite existing torrent file")
+	outpath := flag.String("o", "", "path of output torrent file")
+	private := flag.Bool("p", false, "make a private torrent")
+	comment := flag.String("c", "", "comment text")
+	rec := flag.Bool("r", false, "recursively add files in directories")
+	id := flag.String("id", "com.github.bmatsuo.torrent.cmd.mktorrent/0.0", "program identity")
 	flag.Parse()
 	args := flag.Args()
 	if len(args) < 2 {
@@ -83,9 +89,18 @@ func main() {
 	if err != nil {
 		log.Fatal("could not create torrent: %v", err)
 	}
-
-	outname := fmt.Sprintf("%s.torrent", name)
-	outf, err := os.OpenFile(outname, os.O_WRONLY|os.O_CREATE|os.O_APPEND|os.O_EXCL, 0755)
+	meta.CreationDate = time.Now().Unix()
+	meta.CreatedBy = *id
+	meta.Comment = *comment
+	meta.Info.Private = *private
+	if *outpath == "" {
+		*outpath = fmt.Sprintf("%s.torrent", name)
+	}
+	mode := os.O_WRONLY | os.O_CREATE | os.O_APPEND | os.O_EXCL
+	if *force {
+		mode ^= os.O_EXCL
+	}
+	outf, err := os.OpenFile(*outpath, mode, 0755)
 	outbuf := bufio.NewWriter(outf)
 	if err != nil {
 		log.Fatal(err)
