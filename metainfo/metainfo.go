@@ -19,20 +19,20 @@ import (
 
 // One file in a multi-file Metadata object.
 type FileInfo struct {
-	Path   []string `bencoding:"path"`             // File path components.
-	Length int64    `bencoding:"length"`           // Length in bytes.
-	MD5Sum string   `bencoding:"md5sum,omitempty"` // Optional.
+	Path   []string `bencoding:"path"`
+	Length int64    `bencoding:"length"`
+	MD5Sum string   `bencoding:"md5sum,omitempty"`
 }
 
 // The main contents of a Metadata type.
 type TorrentInfo struct {
-	Name        string      `bencoding:"name"`              // Name of file (single-file mode) or directory (multi-file mode)
-	Files       []*FileInfo `bencoding:"files,omitempty"`   // Nil if and only if single-file mode
-	Length      int64       `bencoding:"length,omitempty"`  // 0 if and only if in multi-file mode
-	MD5Sum      string      `bencoding:"md5sum,omitempty"`  // Empty if and only if multi-file mode (optional).
-	Pieces      []byte      `bencoding:"pieces"`            // SHA-1 hash values of all pieces
-	PieceLength int64       `bencoding:"piece length"`      // Length in bytes.
-	Private     bool        `bencoding:"private,omitempty"` // Optional
+	Name        string      `bencoding:"name"`
+	Files       []*FileInfo `bencoding:"files,omitempty"`
+	Length      int64       `bencoding:"length,omitempty"`
+	MD5Sum      string      `bencoding:"md5sum,omitempty"`
+	Pieces      []byte      `bencoding:"pieces"`
+	PieceLength int64       `bencoding:"piece length"`
+	Private     bool        `bencoding:"private,omitempty"`
 }
 
 // Returns true if info is in Single file mode.
@@ -40,12 +40,12 @@ func (info *TorrentInfo) SingleFileMode() bool { return info.Files == nil }
 
 // The contents of a .torrent file.
 type Metainfo struct {
-	Info         *TorrentInfo `bencoding:"info"`                    // Required
-	Announce     string       `bencoding:"announce"`                // Required
-	CreationDate int64        `bencoding:"creation date,omitempty"` // Optional
-	Encoding     string       `bencoding:"encoding,omitempty"`      // Optional
-	CreatedBy    string       `bencoding:"created by,omitempty"`    // Optional
-	Comment      string       `bencoding:"comment,omitempty"`       // Optional
+	Info         *TorrentInfo `bencoding:"info"`
+	Announce     string       `bencoding:"announce"`
+	CreationDate int64        `bencoding:"creation date,omitempty"`
+	Encoding     string       `bencoding:"encoding,omitempty"`
+	CreatedBy    string       `bencoding:"created by,omitempty"`
+	Comment      string       `bencoding:"comment,omitempty"`
 }
 
 var ErrNotFound = fmt.Errorf("key not found")
