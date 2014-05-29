@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+/*
+Package metainfo provides utilities to work with torrent metainfo files.
+*/
 package metainfo
 
 /*  Filename:    metadata.go
