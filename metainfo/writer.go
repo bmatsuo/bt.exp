@@ -46,6 +46,9 @@ func (w *pieceWriter) Close() error {
 	if w.closed {
 		return errClosed
 	}
+	if w.sha == nil {
+		w.sha = sha1.New()
+	}
 	w.pieces = append(w.pieces, w.sha.Sum(nil)...)
 	w.sha = nil
 	return nil
@@ -55,6 +58,13 @@ func (w *pieceWriter) Write(p []byte) (int, error) {
 	w.nonnil()
 	w.mut.Lock()
 	defer w.mut.Unlock()
+	return w.write(p)
+}
+
+func (w *pieceWriter) write(p []byte) (int, error) {
+	if w.closed {
+		return 0, errClosed
+	}
 	var prefix, suffix []byte
 	cut := w.plen - w.offset
 	n := len(p)
@@ -63,12 +73,15 @@ func (w *pieceWriter) Write(p []byte) (int, error) {
 	} else {
 		prefix = p
 	}
+	if w.sha == nil {
+		w.sha = sha1.New()
+	}
 	w.sha.Write(prefix)
-	if suffix != nil {
+	if len(suffix) > 0 {
 		w.pieces = append(w.pieces, w.sha.Sum(nil)...)
 		w.sha = sha1.New()
 		w.offset = 0
-		_n, err := w.Write(suffix)
+		_n, err := w.write(suffix)
 		return n + _n, err
 	}
 	return n, nil
