@@ -143,8 +143,8 @@ func NewWriter(plen int64) (*Writer, error) {
 	return t, nil
 }
 
-// NewWriterSingle returns a writer in single-file mode.
-// The returned writer can be written too without openning path.
+// NewWriterSingle returns a writer in single-file mode.  Writers retured by
+// NewWriterSingle can be written to without opening a path.
 func NewWriterSingle(plen int64, name string) (*Writer, error) {
 	t, err := NewWriter(plen)
 	if err != nil {
