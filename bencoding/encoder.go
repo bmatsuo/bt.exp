@@ -24,7 +24,7 @@ func NewEncoder(w io.Writer) *Encoder {
 
 //Marshal wrapps Encoder.Encode.
 func Marshal(in interface{}) ([]byte, error) {
-	return encodeObject(in)
+	return encodeObject(in, false)
 }
 
 type Marshaller interface {
@@ -39,7 +39,7 @@ type Marshaller interface {
 //	enc.Encode("test")
 //	enc.Result //contains 'i23e4:test'
 func (enc *Encoder) Encode(in interface{}) error {
-	p, err := encodeObject(in)
+	p, err := encodeObject(in, false)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (enc *Encoder) Encode(in interface{}) error {
 	return err
 }
 
-func encodeObject(in interface{}) ([]byte, error) {
+func encodeObject(in interface{}, omitable bool) ([]byte, error) {
 	if m, ok := in.(Marshaller); ok {
 		return m.MarshalBencoding()
 	}
@@ -79,10 +79,10 @@ func encodeObject(in interface{}) ([]byte, error) {
 		return encodeStruct(reflect.ValueOf(in))
 	case reflect.Ptr:
 		val := reflect.ValueOf(in)
-		if val.IsNil() {
-			panic("nil ptr")
+		if val.IsNil() && !omitable {
+			return nil, fmt.Errorf("nil value")
 		}
-		return encodeObject(reflect.Indirect(val).Interface())
+		return encodeObject(reflect.Indirect(val).Interface(), omitable)
 	default:
 		return nil, fmt.Errorf("invalid type %T", in)
 	}
@@ -127,7 +127,7 @@ func encodeStruct(v reflect.Value) ([]byte, error) {
 	var benc []byte
 	benc = append(benc, 'd')
 	for _, f := range fs {
-		p, err := encodeObject(v.Field(f.i).Interface())
+		p, err := encodeObject(v.Field(f.i).Interface(), f.omitempty)
 		if err != nil {
 			return nil, err
 		}
@@ -177,7 +177,7 @@ func encodeSlice(val reflect.Value) ([]byte, error) {
 	}
 	ret := []byte("l")
 	for i := 0; i < n; i++ {
-		p, err := encodeObject(val.Index(i).Interface())
+		p, err := encodeObject(val.Index(i).Interface(), false)
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +193,7 @@ func encodeList(list []interface{}) ([]byte, error) {
 	}
 	ret := []byte("l")
 	for _, obj := range list {
-		p, err := encodeObject(obj)
+		p, err := encodeObject(obj, false)
 		if err != nil {
 			return nil, err
 		}
@@ -216,7 +216,7 @@ func encodeDict(m map[string]interface{}) ([]byte, error) {
 
 	ret := []byte("d")
 	for _, k := range keys {
-		p, err := encodeObject(m[k])
+		p, err := encodeObject(m[k], false)
 		if err != nil {
 			return nil, err
 		}

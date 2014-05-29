@@ -11,8 +11,40 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
+	"strings"
 )
+
+func structFields(typ reflect.Type) fields {
+	typ = derefType(typ)
+	if typ.Kind() != reflect.Struct {
+		panic("not a struct")
+	}
+	n := typ.NumField()
+	var fs fields
+	for i := 0; i < n; i++ {
+		ftyp := typ.Field(i)
+		if ftyp.PkgPath != "" {
+			continue
+		}
+		var fname string
+		var tag, opts string
+		pieces := strings.SplitN(ftyp.Tag.Get("bencoding"), ",", 2)
+		tag = pieces[0]
+		if len(pieces) > 1 {
+			opts = pieces[1]
+		}
+		if tag != "" {
+			fname = tag
+		} else {
+			fname = ftyp.Name
+		}
+		fs = append(fs, field{i, fname, opts == "omitempty"})
+	}
+	sort.Sort(fs)
+	return fs
+}
 
 // Unmarshal decodes the bencoded content of p into dst.
 // p must contain exactly one bencoded value.
@@ -111,6 +143,7 @@ var okInt = map[reflect.Kind]bool{
 	reflect.Uint32:     true,
 	reflect.Uint16:     true,
 	reflect.Uint8:      true,
+	reflect.Bool:       true,
 }
 
 //fetches next integer from stream and advances pos pointer
@@ -171,7 +204,11 @@ func (dec *Decoder) nextInteger(val reflect.Value) error {
 	}
 
 	val, _ = derefVal(val, true)
-	val.Set(reflect.ValueOf(x))
+	if typ.Kind() == reflect.Bool {
+		val.Set(reflect.ValueOf(x != 0))
+	} else {
+		val.Set(reflect.ValueOf(x))
+	}
 	return nil
 }
 
@@ -184,7 +221,8 @@ func (dec *Decoder) nextString(val reflect.Value) error {
 		return fmt.Errorf("not a string")
 	}
 	typ := derefType(val.Type())
-	if ok := typ.Kind() == reflect.String || isEmptyInterface(typ); !ok {
+	byteslice := typ.Kind() == reflect.Slice && typ.Elem().Kind() == reflect.Uint8
+	if ok := typ.Kind() == reflect.String || byteslice || isEmptyInterface(typ); !ok {
 		return fmt.Errorf("cannot decode string to %T", val.Interface())
 	}
 
@@ -214,7 +252,11 @@ func (dec *Decoder) nextString(val reflect.Value) error {
 	dec.pos += slen
 
 	val, _ = derefVal(val, true)
-	val.Set(reflect.ValueOf(res))
+	if byteslice {
+		val.Set(reflect.ValueOf([]byte(res)))
+	} else {
+		val.Set(reflect.ValueOf(res))
+	}
 	return nil
 }
 
@@ -285,6 +327,8 @@ func (dec *Decoder) nextDict(val reflect.Value) error {
 	} else if isEmptyInterface(typ) {
 		emptyiface = true
 		typ = reflect.TypeOf(map[string]interface{}(nil))
+	} else if typ.Kind() == reflect.Struct {
+		return dec.nextDictStruct(val)
 	} else {
 		return fmt.Errorf("3 cannot decode dictionary to %T", val.Interface())
 	}
@@ -328,6 +372,68 @@ func (dec *Decoder) nextDict(val reflect.Value) error {
 			}
 		}
 		mval.SetMapIndex(reflect.Indirect(key), reflect.Indirect(elem))
+	}
+
+	panic("unreachable")
+}
+
+func (dec *Decoder) nextDictStruct(val reflect.Value) error {
+	if dec.stream[dec.pos] != 'd' {
+		return fmt.Errorf("not a dict")
+	}
+	dec.pos++ //skip 'd'
+
+	typ := derefType(val.Type())
+	fs := structFields(typ)
+
+	var derref bool
+
+	// a value that definitely does not have an interface type
+	i := 0
+	for {
+		if dec.pos >= len(dec.stream) {
+			return fmt.Errorf("unterminated dictionary")
+		}
+		if dec.stream[dec.pos] == 'e' {
+			dec.pos++ //skip 'e'
+			return nil
+		}
+		name := reflect.New(reflect.TypeOf(""))
+		err := dec.nextString(name)
+		if err != nil {
+			return err
+		}
+		set := false
+		var fval reflect.Value
+		var namestr string = reflect.Indirect(name).String()
+		for j := i; j < len(fs); j++ {
+			if namestr == fs[j].name {
+				i = j
+				set = true
+				fval = reflect.New(typ.Field(fs[i].i).Type)
+				break
+			}
+			if !fs[i].omitempty {
+				break
+			}
+		}
+		if !set {
+			var v interface{}
+			fval = reflect.ValueOf(&v)
+		}
+		err = dec.nextObject(fval)
+		if err != nil {
+			return err
+		}
+		if set {
+			if !derref {
+				derref = true
+				val, _ = derefVal(val, true)
+			}
+			field := val.Field(fs[i].i)
+			field.Set(reflect.Indirect(fval))
+			i++
+		}
 	}
 
 	panic("unreachable")

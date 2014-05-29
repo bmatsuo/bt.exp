@@ -146,115 +146,15 @@ func SliceKey(v interface{}, k string) ([]interface{}, error) {
 	return Slice(v)
 }
 
-func ParseMetainfo(p []byte) (meta *Metainfo, err error) {
-	var dict map[string]interface{}
-	err = bencoding.Unmarshal(&dict, p)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if e := recover(); e != nil {
-			err = fmt.Errorf("type error: %v", e)
-		}
-	}()
-	wrapKey := func(key string, err error) error {
-		if err == nil {
-			return nil
-		}
-		return fmt.Errorf("%q %v", key, err)
-	}
-	meta = new(Metainfo)
-	meta.Announce, err = StringKey(dict, "announce")
-	if err != nil {
-		return nil, wrapKey("announce", err)
-	}
-	meta.Encoding, err = StringKey(dict, "encoding")
-	if err != nil && err != ErrNotFound {
-		return nil, wrapKey("encoding", err)
-	}
-	meta.Comment, err = StringKey(dict, "comment")
-	if err != nil && err != ErrNotFound {
-		return nil, wrapKey("comment", err)
-	}
-	meta.CreatedBy, err = StringKey(dict, "created by")
-	if err != nil && err != ErrNotFound {
-		return nil, wrapKey("created by", err)
-	}
-	meta.CreationDate, err = Int64Key(dict, "creation date")
-	if err != nil && err != ErrNotFound {
-		return nil, wrapKey("creation date", err)
-	}
-	infodict, err := Key(dict, "info")
-	if err != nil {
-		return nil, wrapKey("info", err)
-	}
-	info := new(TorrentInfo)
-	meta.Info = info
-	info.Name, err = StringKey(infodict, "name")
-	if err != nil {
-		return nil, wrapKey("name", err)
-	}
-	info.Pieces, err = BytesKey(infodict, "pieces")
-	if err != nil {
-		return nil, wrapKey("pieces", err)
-	}
-	info.MD5Sum, err = StringKey(infodict, "md5sum")
-	if err != nil && err != ErrNotFound {
-		return nil, wrapKey("md5sum", err)
-	}
-	switch privbit, err := Int64Key(infodict, "private"); {
-	case err == ErrNotFound:
-		break
-	case err != nil && err != ErrNotFound:
-		return nil, wrapKey("private", err)
-	case privbit == 0:
-		break
-	case privbit == 1:
-		info.Private = true
-	default:
-		return nil, fmt.Errorf("\"private\" value invalid")
-	}
-	info.PieceLength, err = Int64Key(infodict, "piece length")
-	if err != nil {
-		return nil, wrapKey("piece length", err)
-	}
-	files, err := SliceKey(infodict, "files")
-	if err == ErrNotFound {
-		return meta, nil
-	}
-	if err != nil {
-		return nil, wrapKey("files", err)
-	}
-	for _, filedict := range files {
-		file := new(FileInfo)
-		file.MD5Sum, err = StringKey(filedict, "md5sum")
-		if err != nil {
-			return nil, wrapKey("md5sum", err)
-		}
-		file.Length, err = Int64Key(filedict, "length")
-		if err != nil {
-			return nil, wrapKey("length", err)
-		}
-		path, err := SliceKey(filedict, "path")
-		if err != nil {
-			return nil, wrapKey("path", err)
-		}
-		for _, elem := range path {
-			pathseg, err := String(elem)
-			if err != nil {
-				return nil, err
-			}
-			file.Path = append(file.Path, pathseg)
-		}
-		info.Files = append(info.Files, file)
-	}
-	return meta, nil
-}
-
 func ReadFile(torrent string) (*Metainfo, error) {
+	var meta Metainfo
 	p, err := ioutil.ReadFile(torrent)
 	if err != nil {
 		return nil, err
 	}
-	return ParseMetainfo(p)
+	err = bencoding.Unmarshal(&meta, p)
+	if err != nil {
+		return nil, err
+	}
+	return &meta, nil
 }
