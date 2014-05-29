@@ -223,7 +223,9 @@ func (dec *Decoder) nextList(val reflect.Value) error {
 	if dec.pos >= len(dec.stream) {
 		return EOF
 	}
-	if derefKind(val) != reflect.Slice {
+	typ := derefType(val.Type())
+	emptyiface := isEmptyInterface(typ)
+	if !emptyiface && typ.Kind() != reflect.Slice {
 		return fmt.Errorf("cannot decode list to %T", val.Interface())
 	}
 
@@ -233,6 +235,17 @@ func (dec *Decoder) nextList(val reflect.Value) error {
 	dec.pos++ //skip 'l'
 
 	val, _ = derefVal(val, true)
+	var sval reflect.Value
+	defer func() {
+		val.Set(sval)
+	}()
+	if emptyiface {
+		var s []interface{}
+		sval = reflect.Indirect(reflect.ValueOf(&s))
+		typ = sval.Type()
+	} else {
+		sval = val
+	}
 
 	for {
 		if dec.pos >= len(dec.stream) {
@@ -242,12 +255,12 @@ func (dec *Decoder) nextList(val reflect.Value) error {
 			dec.pos++ //skip 'e'
 			return nil
 		}
-		elem := newElem(val)
+		elem := reflect.New(typ.Elem())
 		err := dec.nextObject(elem)
 		if err != nil {
 			return err
 		}
-		val.Set(reflect.Append(val, reflect.Indirect(elem)))
+		sval.Set(reflect.Append(sval, reflect.Indirect(elem)))
 	}
 	panic("unreachable")
 }
@@ -259,16 +272,21 @@ func (dec *Decoder) nextDict(val reflect.Value) error {
 	if dec.pos >= len(dec.stream) {
 		return EOF
 	}
+	var emptyiface bool
 	typ := derefType(val.Type())
-	if typ.Kind() != reflect.Map {
-		return fmt.Errorf("cannot decode dictionary to %T", val.Interface())
-	}
-	if typ.Key().Kind() != reflect.String {
-		return fmt.Errorf("cannot decode dictionary to %T", val.Interface())
-	}
-	vtyp := derefType(typ.Elem())
-	if vtyp.Kind() != reflect.Interface || vtyp.NumMethod() > 0 {
-		return fmt.Errorf("cannot decode dictionary to %T", val.Interface())
+	if typ.Kind() == reflect.Map {
+		if typ.Key().Kind() != reflect.String {
+			return fmt.Errorf("1 cannot decode dictionary to %T", val.Interface())
+		}
+		vtyp := derefType(typ.Elem())
+		if !isEmptyInterface(vtyp) {
+			return fmt.Errorf("2 cannot decode dictionary to %T %v", val.Interface())
+		}
+	} else if isEmptyInterface(typ) {
+		emptyiface = true
+		typ = reflect.TypeOf(map[string]interface{}(nil))
+	} else {
+		return fmt.Errorf("3 cannot decode dictionary to %T", val.Interface())
 	}
 
 	if dec.stream[dec.pos] != 'd' {
@@ -277,8 +295,9 @@ func (dec *Decoder) nextDict(val reflect.Value) error {
 	dec.pos++ //skip 'd'
 
 	var derref bool
-	val, _ = derefVal(val, true)
 
+	// a value that definitely does not have an interface type
+	var mval reflect.Value
 	for {
 		if dec.pos >= len(dec.stream) {
 			return fmt.Errorf("unterminated dictionary")
@@ -287,21 +306,28 @@ func (dec *Decoder) nextDict(val reflect.Value) error {
 			dec.pos++ //skip 'e'
 			return nil
 		}
-		key := newKey(val)
+		key := reflect.New(typ.Key())
 		err := dec.nextString(key)
 		if err != nil {
 			return err
 		}
-		elem := newElem(val)
+		elem := reflect.New(typ.Elem())
 		err = dec.nextObject(elem)
 		if err != nil {
 			return err
 		}
 		if !derref {
+			derref = true
 			val, _ = derefVal(val, true)
-			val.Set(reflect.MakeMap(val.Type()))
+			if emptyiface {
+				mval = reflect.ValueOf(make(map[string]interface{}))
+				val.Set(mval)
+			} else {
+				mval = reflect.MakeMap(val.Type())
+				val.Set(mval)
+			}
 		}
-		val.SetMapIndex(reflect.Indirect(key), reflect.Indirect(elem))
+		mval.SetMapIndex(reflect.Indirect(key), reflect.Indirect(elem))
 	}
 
 	panic("unreachable")
@@ -341,12 +367,4 @@ func derefVal(val reflect.Value, create bool) (dval reflect.Value, foundnil bool
 	child := reflect.New(val.Type().Elem())
 	val.Set(child)
 	return derefVal(child, true)
-}
-
-func newElem(val reflect.Value) reflect.Value {
-	return reflect.New(val.Type().Elem())
-}
-
-func newKey(val reflect.Value) reflect.Value {
-	return reflect.New(val.Type().Key())
 }

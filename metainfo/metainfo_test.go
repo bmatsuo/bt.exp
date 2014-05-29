@@ -7,29 +7,63 @@ package metainfo
  */
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/bmatsuo/torrent/bencoding"
 )
 
-func TestReadFile(t *testing.T) {
+func TestThings(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("failed to determine working directory: %v", err)
 	}
-	t.Logf("pwd: %v", cwd)
-	testfiles, err := filepath.Glob(filepath.Join(cwd, "test", "*.torrent"))
+	testfiles, err := filepath.Glob(filepath.Join(cwd, "test", "torrents", "*"))
 	if err != nil {
 		t.Fatalf("failed to find test torrent files: %v", err)
 	}
+	if len(testfiles) == 0 {
+		t.Fatalf("no test files found")
+	}
 	for _, filename := range testfiles {
-		meta, err := ReadFile(filename)
+		if !strings.HasSuffix(filename, ".torrent") {
+			t.Logf("skipping non-torrent %q", filename)
+			continue
+		}
+		base := filepath.Base(filename)
+		origp, err := ioutil.ReadFile(filename)
 		if err != nil {
 			t.Errorf("failed to read file: %v", err)
 			continue
 		}
-		if meta.Announce == "" {
-			t.Errorf("no announce url for file %q", filename)
+		meta, err := ParseMetainfo(origp)
+		if err != nil {
+			t.Errorf("failed to read file: %v", err)
+			continue
+		}
+		p, err := bencoding.Marshal(meta)
+		if err != nil {
+			t.Errorf("unable to marshal metainfo for %q: %v", base, err)
+			continue
+		}
+		meta, err = ParseMetainfo(p)
+		if err != nil {
+			t.Errorf("unable to parse marshalled output for %q: %v", base, err)
+			continue
+		}
+		cpp, _ := bencoding.Marshal(meta)
+		if len(p) != len(cpp) {
+			t.Errorf("unexpected output size %d for %q (expected %d)", len(p), base, len(cpp))
+			continue
+		}
+		if !reflect.DeepEqual(p, cpp) {
+			t.Logf("expected: %q", p)
+			t.Logf("received: %q", cpp)
+			t.Fatalf("unexpected serialization output for %q", base)
 		}
 	}
 }
