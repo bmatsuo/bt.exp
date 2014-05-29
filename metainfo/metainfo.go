@@ -66,6 +66,14 @@ func Key(v interface{}, key string) (interface{}, error) {
 	return v, nil
 }
 
+func Bytes(v interface{}) ([]byte, error) {
+	s, ok := v.(string)
+	if !ok {
+		return nil, ErrInvalidType
+	}
+	return []byte(s), nil
+}
+
 func String(v interface{}) (string, error) {
 	s, ok := v.(string)
 	if !ok {
@@ -98,16 +106,20 @@ func Slice(v interface{}) ([]interface{}, error) {
 	return a, nil
 }
 
+func BytesKey(m interface{}, k string) ([]byte, error) {
+	v, err := Key(m, k)
+	if err != nil {
+		return nil, err
+	}
+	return Bytes(v)
+}
+
 func StringKey(m interface{}, k string) (string, error) {
 	v, err := Key(m, k)
 	if err != nil {
 		return "", err
 	}
-	s, ok := v.(string)
-	if !ok {
-		return "", ErrInvalidType
-	}
-	return s, nil
+	return String(v)
 }
 
 func Int64Key(m interface{}, k string) (int64, error) {
@@ -115,11 +127,7 @@ func Int64Key(m interface{}, k string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	x, ok := v.(int64)
-	if !ok {
-		return 0, ErrInvalidType
-	}
-	return x, nil
+	return Int64(v)
 }
 
 func MapKey(v interface{}, k string) (map[string]interface{}, error) {
@@ -127,11 +135,7 @@ func MapKey(v interface{}, k string) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	m, ok := v.(map[string]interface{})
-	if !ok {
-		return nil, ErrInvalidType
-	}
-	return m, nil
+	return Map(v)
 }
 
 func SliceKey(v interface{}, k string) ([]interface{}, error) {
@@ -139,11 +143,7 @@ func SliceKey(v interface{}, k string) ([]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	a, ok := v.([]interface{})
-	if !ok {
-		return nil, ErrInvalidType
-	}
-	return a, nil
+	return Slice(v)
 }
 
 func ParseMetainfo(p []byte) (meta *Metainfo, err error) {
@@ -188,7 +188,7 @@ func ParseMetainfo(p []byte) (meta *Metainfo, err error) {
 	if err != nil {
 		return nil, err
 	}
-	info.Pieces, err = StringKey(infodict, "pieces")
+	info.Pieces, err = BytesKey(infodict, "pieces")
 	if err != nil {
 		return nil, err
 	}
