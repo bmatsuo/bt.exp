@@ -13,6 +13,7 @@ package metainfo
 import (
 	"fmt"
 	"io/ioutil"
+
 	"github.com/bmatsuo/torrent/bencoding"
 )
 
@@ -27,8 +28,9 @@ type FileInfo struct {
 type TorrentInfo struct {
 	Name        string      // Name of file (single-file mode) or directory (multi-file mode)
 	Files       []*FileInfo // Nil if and only if single-file mode
-	MD5Sum      string      // Optional -- Non-empty if and only if single-file mode.
-	Pieces      string      // SHA-1 hash values of all pieces
+	Length      int64       // 0 if and only if in multi-file mode
+	MD5Sum      string      // Empty if and only if multi-file mode (optional).
+	Pieces      []byte      // SHA-1 hash values of all pieces
 	PieceLength int64       // Length in bytes.
 	Private     bool        // Optional
 }
@@ -46,19 +48,102 @@ type Metainfo struct {
 	Comment      string       // Optional
 }
 
-func tryCastKey(m map[string]interface{}, key string, action func(interface{}), required bool) {
-	tryCast(key, m[key], action, required)
+var ErrNotFound = fmt.Errorf("key not found")
+var ErrInvalidType = fmt.Errorf("value has the wrong type")
+
+func Key(v interface{}, key string) (interface{}, error) {
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		return nil, ErrInvalidType
+	}
+	if m == nil {
+		return nil, ErrNotFound
+	}
+	v, ok = m[key]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return v, nil
 }
 
-func tryCast(name string, v interface{}, action func(interface{}), required bool) {
-	defer func() {
-		if e := recover(); e != nil {
-			if required {
-				panic(fmt.Errorf("%s: %v", name, e))
-			}
-		}
-	}()
-	action(v)
+func String(v interface{}) (string, error) {
+	s, ok := v.(string)
+	if !ok {
+		return "", ErrInvalidType
+	}
+	return s, nil
+}
+
+func Int64(v interface{}) (int64, error) {
+	x, ok := v.(int64)
+	if !ok {
+		return 0, ErrInvalidType
+	}
+	return x, nil
+}
+
+func Map(v interface{}) (map[string]interface{}, error) {
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		return nil, ErrInvalidType
+	}
+	return m, nil
+}
+
+func Slice(v interface{}) ([]interface{}, error) {
+	a, ok := v.([]interface{})
+	if !ok {
+		return nil, ErrInvalidType
+	}
+	return a, nil
+}
+
+func StringKey(m interface{}, k string) (string, error) {
+	v, err := Key(m, k)
+	if err != nil {
+		return "", err
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", ErrInvalidType
+	}
+	return s, nil
+}
+
+func Int64Key(m interface{}, k string) (int64, error) {
+	v, err := Key(m, k)
+	if err != nil {
+		return 0, err
+	}
+	x, ok := v.(int64)
+	if !ok {
+		return 0, ErrInvalidType
+	}
+	return x, nil
+}
+
+func MapKey(v interface{}, k string) (map[string]interface{}, error) {
+	v, err := Key(v, k)
+	if err != nil {
+		return nil, err
+	}
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		return nil, ErrInvalidType
+	}
+	return m, nil
+}
+
+func SliceKey(v interface{}, k string) ([]interface{}, error) {
+	v, err := Key(v, k)
+	if err != nil {
+		return nil, err
+	}
+	a, ok := v.([]interface{})
+	if !ok {
+		return nil, ErrInvalidType
+	}
+	return a, nil
 }
 
 func ParseMetainfo(p []byte) (meta *Metainfo, err error) {
@@ -73,34 +158,84 @@ func ParseMetainfo(p []byte) (meta *Metainfo, err error) {
 		}
 	}()
 	meta = new(Metainfo)
-	tryCastKey(dict, "announce", func(v interface{}) { meta.Announce = v.(string) }, true)
-	tryCastKey(dict, "encoding", func(v interface{}) { meta.Encoding = v.(string) }, false)
-	tryCastKey(dict, "comment", func(v interface{}) { meta.Comment = v.(string) }, false)
-	tryCastKey(dict, "created by", func(v interface{}) { meta.CreatedBy = v.(string) }, false)
-	tryCastKey(dict, "creation date", func(v interface{}) { meta.CreationDate = v.(int64) }, false)
-	var _info map[string]interface{}
-	tryCastKey(dict, "info", func(v interface{}) { _info = v.(map[string]interface{}) }, true)
+	meta.Announce, err = StringKey(dict, "announce")
+	if err != nil {
+		return nil, err
+	}
+	meta.Encoding, err = StringKey(dict, "encoding")
+	if err != nil && err != ErrNotFound {
+		return nil, err
+	}
+	meta.Comment, err = StringKey(dict, "comment")
+	if err != nil && err != ErrNotFound {
+		return nil, err
+	}
+	meta.CreatedBy, err = StringKey(dict, "created by")
+	if err != nil && err != ErrNotFound {
+		return nil, err
+	}
+	meta.CreationDate, err = Int64Key(dict, "creation date")
+	if err != nil && err != ErrNotFound {
+		return nil, err
+	}
+	infodict, err := Key(dict, "info")
+	if err != nil {
+		return nil, err
+	}
 	info := new(TorrentInfo)
 	meta.Info = info
-	tryCastKey(dict, "name", func(v interface{}) { info.Name = v.(string) }, true)
-	tryCastKey(dict, "pieces", func(v interface{}) { info.Pieces = v.(string) }, true)
-	tryCastKey(dict, "md5sum", func(v interface{}) { info.MD5Sum = v.(string) }, false)
-	tryCastKey(dict, "private", func(v interface{}) { info.Private = v.(int64) == 1 }, false)
-	tryCastKey(dict, "piece length", func(v interface{}) { info.PieceLength = v.(int64) }, true)
-	var _fileIs []interface{}
-	tryCastKey(_info, "files", func(v interface{}) { _fileIs = v.([]interface{}) }, false)
-	for i, _fileI := range _fileIs {
-		var _file map[string]interface{}
-		tryCast(fmt.Sprintf("file %d", i), _fileI,
-			func(v interface{}) { _file = v.(map[string]interface{}) }, true)
+	info.Name, err = StringKey(infodict, "name")
+	if err != nil {
+		return nil, err
+	}
+	info.Pieces, err = StringKey(infodict, "pieces")
+	if err != nil {
+		return nil, err
+	}
+	info.MD5Sum, err = StringKey(infodict, "md5sum")
+	if err != nil && err != ErrNotFound {
+		return nil, err
+	}
+	switch privbit, err := StringKey(infodict, "private"); {
+	case err == ErrNotFound:
+		break
+	case err != nil && err != ErrNotFound:
+		return nil, err
+	case privbit == "0":
+		break
+	case privbit == "1":
+		info.Private = true
+	default:
+		return nil, fmt.Errorf("invalid 'private' value")
+	}
+	info.PieceLength, err = Int64Key(infodict, "piece length")
+	if err != nil {
+		return nil, err
+	}
+	files, err := SliceKey(infodict, "files")
+	if err != nil {
+		return nil, err
+	}
+	for _, filedict := range files {
 		file := new(FileInfo)
-		tryCastKey(_file, "md5sum", func(v interface{}) { file.MD5Sum = v.(string) }, false)
-		tryCastKey(_file, "length", func(v interface{}) { file.Length = v.(int64) }, true)
-		var path []interface{}
-		tryCastKey(_file, "path", func(v interface{}) { path = v.([]interface{}) }, true)
-		for j, elem := range path {
-			tryCast(fmt.Sprintf("file %d: path element %d", i, j), elem,
-				func(v interface{}) { file.Path = append(file.Path, v.(string)) }, true)
+		file.MD5Sum, err = StringKey(filedict, "md5sum")
+		if err != nil {
+			return nil, err
+		}
+		file.Length, err = Int64Key(filedict, "length")
+		if err != nil {
+			return nil, err
+		}
+		path, err := SliceKey(filedict, "path")
+		if err != nil {
+			return nil, err
+		}
+		for _, elem := range path {
+			pathseg, err := String(elem)
+			if err != nil {
+				return nil, err
+			}
+			file.Path = append(file.Path, pathseg)
 		}
 		info.Files = append(info.Files, file)
 	}
