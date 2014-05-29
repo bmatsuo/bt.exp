@@ -23,7 +23,7 @@ type FileInfo struct {
 }
 
 // The main contents of a Metadata type.
-type TorrentInfo struct {
+type Info struct {
 	Name        string      `bencoding:"name"`
 	Files       []*FileInfo `bencoding:"files,omitempty"`
 	Length      int64       `bencoding:"length,omitempty"`
@@ -34,14 +34,14 @@ type TorrentInfo struct {
 }
 
 // Returns true if info is in Single file mode.
-func (info *TorrentInfo) SingleFileMode() bool { return info.Files == nil }
+func (info *Info) SingleFileMode() bool { return info.Files == nil }
 
 // The contents of a .torrent file.
 type Metainfo struct {
-	Info         *TorrentInfo `bencoding:"info"`
-	Announce     string       `bencoding:"announce"`
-	CreationDate int64        `bencoding:"creation date,omitempty"`
-	Encoding     string       `bencoding:"encoding,omitempty"`
-	CreatedBy    string       `bencoding:"created by,omitempty"`
-	Comment      string       `bencoding:"comment,omitempty"`
+	Info         *Info  `bencoding:"info"`
+	Announce     string `bencoding:"announce"`
+	CreationDate int64  `bencoding:"creation date,omitempty"`
+	Encoding     string `bencoding:"encoding,omitempty"`
+	CreatedBy    string `bencoding:"created by,omitempty"`
+	Comment      string `bencoding:"comment,omitempty"`
 }

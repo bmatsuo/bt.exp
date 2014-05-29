@@ -231,7 +231,7 @@ func (t *Writer) Metainfo(dir, announce string) (*Metainfo, error) {
 }
 
 func (t *Writer) metainfoMulti(dir, announce string) (*Metainfo, error) {
-	var info TorrentInfo
+	var info Info
 	info.Name = dir
 	for _, file := range t.files {
 		fileinfo := &FileInfo{
@@ -248,7 +248,7 @@ func (t *Writer) metainfoMulti(dir, announce string) (*Metainfo, error) {
 }
 
 func (t *Writer) metainfoSingle(_, announce string) (*Metainfo, error) {
-	var info TorrentInfo
+	var info Info
 	info.Name = t.files[0].path[0]
 	info.Length = t.files[0].length
 	info.MD5Sum = fmt.Sprintf("%x", t.files[0].MD5Sum())
