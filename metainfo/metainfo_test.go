@@ -17,7 +17,8 @@ import (
 	"github.com/bmatsuo/torrent/bencoding"
 )
 
-func TestThings(t *testing.T) {
+// TestBencoding tests the bencoding tags on metainfo struct types.
+func TestBencoding(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("failed to determine working directory: %v", err)
