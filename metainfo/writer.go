@@ -247,7 +247,7 @@ func (t *Writer) metainfoMulti(dir, announce string) (*Metainfo, error) {
 	var info Info
 	info.Name = dir
 	for _, file := range t.files {
-		fileinfo := &FileInfo{
+		fileinfo := FileInfo{
 			Path:   file.path,
 			Length: file.length,
 		}
