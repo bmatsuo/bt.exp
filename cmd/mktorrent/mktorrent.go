@@ -45,11 +45,9 @@ func main() {
 			if err != nil {
 				return err
 			}
-
 			if info.IsDir() { // rec check would be redundant
 				return nil
 			}
-
 			metap, err := filepath.Rel(filename, path)
 			if err != nil {
 				return err
@@ -67,6 +65,7 @@ func main() {
 			if err != nil {
 				return err
 			}
+			defer f.Close()
 			err = w.Open(metaps...)
 			if err != nil {
 				return err
@@ -75,7 +74,6 @@ func main() {
 			if err != nil {
 				return err
 			}
-			f.Close()
 
 			return nil
 		})
