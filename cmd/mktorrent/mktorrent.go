@@ -56,8 +56,8 @@ func main() {
 			}
 			var metaps []string
 			var base string
-			for metap != "" {
-				metap, base = filepath.Split(metap)
+			for metap != "" && metap != "." {
+				metap, base = filepath.Dir(metap), filepath.Base(metap)
 				metaps = append(metaps, "")
 				copy(metaps, metaps[1:])
 				metaps[0] = base
@@ -100,7 +100,7 @@ func main() {
 	if *force {
 		mode ^= os.O_EXCL
 	}
-	outf, err := os.OpenFile(*outpath, mode, 0755)
+	outf, err := os.OpenFile(*outpath, mode, 0640)
 	outbuf := bufio.NewWriter(outf)
 	if err != nil {
 		log.Fatal(err)
