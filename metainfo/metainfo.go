@@ -16,6 +16,8 @@ This package API is unstable and may change without notice.
 package metainfo
 
 import (
+	"crypto/sha1"
+	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -44,8 +46,23 @@ type Info struct {
 }
 
 // Returns true if info is in single-file mode.
-func (info *Info) SingleFileMode() bool {
+func (info Info) SingleFileMode() bool {
 	return len(info.Files) == 0
+}
+
+// Hash returns the SHA-1 hash of info as a bencoded dictionary.
+func (info Info) Hash() (string, error) {
+	p, err := bencoding.Marshal(info)
+	if err != nil {
+		return "", err
+	}
+	h := sha1.New()
+	_, err = h.Write(p)
+	if err != nil {
+		return "", err
+	}
+	infohash := fmt.Sprint("%x", h.Sum(nil))
+	return infohash, nil
 }
 
 // Metainfo serializes the BitTorrent metainfo dictionary.
