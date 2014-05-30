@@ -257,7 +257,7 @@ func (t *Writer) metainfoMulti(dir, announce string) (*Metainfo, error) {
 		info.Files = append(info.Files, fileinfo)
 	}
 	info.Pieces = t.w.Pieces()
-	return &Metainfo{Info: &info}, nil
+	return &Metainfo{Info: info}, nil
 }
 
 func (t *Writer) metainfoSingle(_, announce string) (*Metainfo, error) {
@@ -266,5 +266,5 @@ func (t *Writer) metainfoSingle(_, announce string) (*Metainfo, error) {
 	info.Length = t.files[0].length
 	info.MD5Sum = fmt.Sprintf("%x", t.files[0].MD5Sum())
 	info.Pieces = t.w.Pieces()
-	return &Metainfo{Info: &info}, nil
+	return &Metainfo{Info: info}, nil
 }

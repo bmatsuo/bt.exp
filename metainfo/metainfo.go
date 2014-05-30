@@ -50,7 +50,7 @@ func (info *Info) SingleFileMode() bool {
 
 // Metainfo serializes the BitTorrent metainfo dictionary.
 type Metainfo struct {
-	Info         *Info  `bencoding:"info"`
+	Info         Info   `bencoding:"info"`
 	Announce     string `bencoding:"announce"`
 	CreationDate int64  `bencoding:"creation date,omitempty"`
 	Encoding     string `bencoding:"encoding,omitempty"`
