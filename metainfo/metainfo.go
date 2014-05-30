@@ -17,7 +17,6 @@ package metainfo
 
 import (
 	"crypto/sha1"
-	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -50,19 +49,18 @@ func (info Info) SingleFileMode() bool {
 	return len(info.Files) == 0
 }
 
-// Hash returns the SHA-1 hash of info as a bencoded dictionary.
-func (info Info) Hash() (string, error) {
+// Hash returns the (20 byte) SHA-1 hash of info.
+func (info Info) Hash() ([]byte, error) {
 	p, err := bencoding.Marshal(info)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	h := sha1.New()
 	_, err = h.Write(p)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	infohash := fmt.Sprint("%x", h.Sum(nil))
-	return infohash, nil
+	return h.Sum(nil), nil
 }
 
 // Metainfo serializes the BitTorrent metainfo dictionary.
