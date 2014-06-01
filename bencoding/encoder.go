@@ -5,7 +5,6 @@ import (
 	"io"
 	"reflect"
 	"sort"
-	"strings"
 )
 
 //Encoder takes care of encoding objects into byte streams.
@@ -120,28 +119,7 @@ func (fs fields) Swap(i, j int)      { fs[i], fs[j] = fs[j], fs[i] }
 // BUG: dictionary keys cannot contain commas
 func encodeStruct(v reflect.Value) ([]byte, error) {
 	typ := v.Type()
-	n := typ.NumField()
-	var fs fields
-	for i := 0; i < n; i++ {
-		ftyp := typ.Field(i)
-		if ftyp.PkgPath != "" {
-			continue
-		}
-		var fname string
-		var tag, opts string
-		pieces := strings.SplitN(ftyp.Tag.Get("bencoding"), ",", 2)
-		tag = pieces[0]
-		if len(pieces) > 1 {
-			opts = pieces[1]
-		}
-		if tag != "" {
-			fname = tag
-		} else {
-			fname = ftyp.Name
-		}
-		fs = append(fs, field{i, fname, opts == "omitempty"})
-	}
-	sort.Sort(fs)
+	fs := structFields(typ)
 	var benc []byte
 	benc = append(benc, 'd')
 	for _, f := range fs {

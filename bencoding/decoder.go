@@ -29,6 +29,9 @@ func structFields(typ reflect.Type) fields {
 		if len(pieces) > 1 {
 			opts = pieces[1]
 		}
+		if tag == "-" {
+			continue
+		}
 		if tag != "" {
 			fname = tag
 		} else {

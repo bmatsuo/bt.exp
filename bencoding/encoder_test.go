@@ -27,9 +27,11 @@ func TestMarshal_success(t *testing.T) {
 		}, "d7:charset5:utf-85:hello5:worlde"},
 		{struct {
 			A string `bencoding:"a,omitempty"`
-			B int64  `bencoding:"b"`
+			B int64
 			C bool   `bencoding:"c"`
-		}{}, "d1:bi0e1:ci0ee"},
+			D string `bencoding:"-"`
+			e int64
+		}{}, "d1:Bi0e1:ci0ee"},
 	} {
 		p, err := Marshal(test.v)
 		if err != nil {
