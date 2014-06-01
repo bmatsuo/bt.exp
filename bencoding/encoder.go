@@ -7,11 +7,7 @@ import (
 	"sort"
 )
 
-//Encoder takes care of encoding objects into byte streams.
-//The result of the encoding operation is available in Encoder.Bytes.
-//Consecutive operations are appended to the byte stream.
-//
-//Accepts only string, int/int64, []interface{} and map[string]interface{} as input.
+// Encoder writes bencoded objects into an io.Writer.
 type Encoder struct {
 	w io.Writer //the result byte stream
 }
@@ -21,18 +17,21 @@ func NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{w}
 }
 
-//Marshal wraps Encoder.Encode.
+// Marshal wraps Encoder.Encode.
 func Marshal(in interface{}) ([]byte, error) {
 	return encodeObject(in, false)
 }
 
+// Marshaller implements custom marshalling of Bencoded values.
 type Marshaller interface {
 	MarshalBencoding() ([]byte, error)
 }
 
-//Encode bencodes an object and writes it to the underlying io.Writer.
-func (enc *Encoder) Encode(in interface{}) error {
-	p, err := encodeObject(in, false)
+// Encode bencodes an object and writes it to enc's output stream.  If v
+// implements Marshaller, v.Marshaller() is written to the output stream.
+// Otherwise a default encoding is of v is performed using runtime reflection.
+func (enc *Encoder) Encode(v interface{}) error {
+	p, err := encodeObject(v, false)
 	if err != nil {
 		return err
 	}

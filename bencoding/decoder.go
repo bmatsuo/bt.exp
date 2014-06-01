@@ -10,6 +10,13 @@ import (
 	"strings"
 )
 
+// Unmarshaller implements custom unmarshalling for bencoded entities.
+//
+// BUG: this is not recognized in Unmarshal()
+type Unmarshaller interface {
+	UnmarshalBencoding([]byte) error
+}
+
 func structFields(typ reflect.Type) fields {
 	typ = derefType(typ)
 	if typ.Kind() != reflect.Struct {
@@ -57,26 +64,21 @@ func Unmarshal(p []byte, dst interface{}) error {
 	return nil
 }
 
-//A Decoder reads and decodes bencoded objects from an input stream.
-//It returns objects that are either an "Integer", "String", "List" or "Dict".
+// A Decoder reads and decodes bencoded objects from an input stream.
+// It returns objects that are either an "Integer", "String", "List" or "Dict".
 //
-//Example usage:
-//	d := bencode.NewDecoder([]byte("i23e4:testi123e"))
-//	for !p.Consumed {
-//		o, _ := p.Decode()
-//		fmt.Printf("obj(%s): %#v\n", reflect.TypeOf(o).Name, o)
-//	}
+// BUG: Decoder's cannot be constructed for arbitrary io.Reader implementations.
 type Decoder struct {
 	stream []byte
 	pos    int
 }
 
-//NewDecoder creates a new decoder for the given token stream
+// NewDecoderBytes creates a new decoder from b.
 func NewDecoderBytes(b []byte) *Decoder {
 	return &Decoder{b, 0}
 }
 
-//Decode reads one object from the input stream
+// Decode reads one object from the input stream
 func (dec *Decoder) Decode(dst interface{}) error {
 	val := reflect.ValueOf(dst)
 	if val.Kind() != reflect.Ptr {
