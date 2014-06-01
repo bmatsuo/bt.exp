@@ -47,6 +47,21 @@ func (enc *Encoder) Encode(in interface{}) error {
 	return err
 }
 
+var intKind = map[reflect.Kind]bool{
+	reflect.Int:   true,
+	reflect.Int64: true,
+	reflect.Int32: true,
+	reflect.Int16: true,
+	reflect.Int8:  true,
+}
+var uintKind = map[reflect.Kind]bool{
+	reflect.Uint:   true,
+	reflect.Uint64: true,
+	reflect.Uint32: true,
+	reflect.Uint16: true,
+	reflect.Uint8:  true,
+}
+
 func encodeObject(in interface{}, omitable bool) ([]byte, error) {
 	if m, ok := in.(Marshaller); ok {
 		return m.MarshalBencoding()
@@ -60,29 +75,32 @@ func encodeObject(in interface{}, omitable bool) ([]byte, error) {
 	if p, ok := in.([]byte); ok {
 		return encodeBytes(p), nil
 	}
-	switch t := reflect.TypeOf(in); t.Kind() {
-	case reflect.String:
-		return encodeString(in.(string)), nil
-	case reflect.Int64:
-		return encodeInteger(in.(int64)), nil
-	case reflect.Int:
-		return encodeInteger(int64(in.(int))), nil
-	case reflect.Bool:
-		if in.(bool) {
-			return []byte("i1e"), nil
-		} else {
-			return []byte("i0e"), nil
-		}
-	case reflect.Slice:
-		return encodeSlice(reflect.ValueOf(in))
-	case reflect.Struct:
-		return encodeStruct(reflect.ValueOf(in))
-	case reflect.Ptr:
+	t := reflect.TypeOf(in)
+	k := t.Kind()
+	switch {
+	case k == reflect.Ptr:
 		val := reflect.ValueOf(in)
 		if val.IsNil() && !omitable {
 			return nil, fmt.Errorf("nil value")
 		}
 		return encodeObject(reflect.Indirect(val).Interface(), omitable)
+	case k == reflect.Struct:
+		return encodeStruct(reflect.ValueOf(in))
+	case k == reflect.String:
+		return encodeString(reflect.ValueOf(in).String()), nil
+	case k == reflect.Slice:
+		return encodeSlice(reflect.ValueOf(in))
+	case intKind[k]:
+		return encodeInteger(reflect.ValueOf(in).Int()), nil
+	case uintKind[k]:
+		// TODO prevent overflow
+		return encodeInteger(int64(reflect.ValueOf(in).Uint())), nil
+	case k == reflect.Bool:
+		if in.(bool) {
+			return []byte("i1e"), nil
+		} else {
+			return []byte("i0e"), nil
+		}
 	default:
 		return nil, fmt.Errorf("invalid type %T", in)
 	}
