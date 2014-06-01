@@ -5,6 +5,8 @@ this project with probably never house either.
 
 **Note** these APIs are unstable
 
+[![Build Status](https://travis-ci.org/bmatsuo/torrent.svg?branch=master)](https://travis-ci.org/bmatsuo/torrent)
+
 ##[bencoding](http://godoc.org/github.com/bmatsuo/torrent/bencoding)
 
 Bencoding serialization
