@@ -89,7 +89,7 @@ func ReadFile(filename string) (*Metainfo, error) {
 		return nil, err
 	}
 	var meta Metainfo
-	err = bencoding.Unmarshal(&meta, p)
+	err = bencoding.Unmarshal(p, &meta)
 	if err != nil {
 		return nil, err
 	}

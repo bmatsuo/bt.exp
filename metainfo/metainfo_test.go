@@ -42,7 +42,7 @@ func TestBencoding(t *testing.T) {
 			continue
 		}
 		var meta Metainfo
-		err = bencoding.Unmarshal(&meta, origp)
+		err = bencoding.Unmarshal(origp, &meta)
 		if err != nil {
 			t.Errorf("failed to read file: %v", err)
 			continue
@@ -53,7 +53,7 @@ func TestBencoding(t *testing.T) {
 			continue
 		}
 		meta = Metainfo{}
-		err = bencoding.Unmarshal(&meta, p)
+		err = bencoding.Unmarshal(p, &meta)
 		if err != nil {
 			t.Errorf("unable to parse marshalled output for %q: %v", base, err)
 			continue

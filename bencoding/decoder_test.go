@@ -2,6 +2,7 @@ package bencoding
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"testing"
 )
@@ -136,4 +137,37 @@ func TestDict(t *testing.T) {
 	dt(t, "de", map[string]interface{}{}, false)
 	dt(t, "d4:highi5e", map[string]interface{}{}, true)
 	dt(t, "d5:highi5ee", map[string]interface{}{}, true)
+}
+
+func TestUnmarshal_success(t *testing.T) {
+	type hello struct {
+		Hello  string `bencoding:"hello"`
+		Pri    string
+		Ignore string `bencoding:"-"`
+	}
+	for _, test := range []struct {
+		benc   string
+		dst    interface{}
+		expect interface{}
+	}{
+		{"5:hello", new(string), "hello"},
+		{"i3e", new(int64), int64(3)},
+		//{"i3e", new(uint), uint(3)}, // BUG
+		//{"i3e", new(int32), int32(3)}, // BUG
+		{"li3e4:boome", new([]interface{}), []interface{}{int64(3), "boom"}},
+		//{"de", new(interface{}), map[string]interface{}(nil)}, // BUG
+		{"d5:helloi0ee", new(interface{}), map[string]interface{}{"hello": int64(0)}},
+		{"d5:hello5:worlde", new(map[string]interface{}), map[string]interface{}{"hello": "world"}},
+		{"d6:Ignore5:WORLD3:Pri3:!!!5:hello5:worlde", new(hello), hello{"world", "!!!", ""}},
+	} {
+		err := Unmarshal([]byte(test.benc), test.dst)
+		if err != nil {
+			t.Errorf("unmarshal %q -> %#v: %v", test.benc, test.dst, err)
+			continue
+		}
+		v := reflect.Indirect(reflect.ValueOf(test.dst)).Interface()
+		if !reflect.DeepEqual(v, test.expect) {
+			t.Errorf("unmarshal %q -> %#v (expected %v)", test.benc, v, test.expect)
+		}
+	}
 }

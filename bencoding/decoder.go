@@ -45,7 +45,7 @@ func structFields(typ reflect.Type) fields {
 
 // Unmarshal decodes the bencoded content of p into dst.
 // p must contain exactly one bencoded value.
-func Unmarshal(dst interface{}, p []byte) error {
+func Unmarshal(p []byte, dst interface{}) error {
 	dec := NewDecoderBytes(p)
 	err := dec.nextObject(reflect.ValueOf(dst))
 	if err != nil {
