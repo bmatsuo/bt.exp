@@ -145,17 +145,20 @@ func TestUnmarshal_success(t *testing.T) {
 		Pri    string
 		Ignore string `bencoding:"-"`
 	}
+	type mystring string
 	for _, test := range []struct {
 		benc   string
 		dst    interface{}
 		expect interface{}
 	}{
 		{"5:hello", new(string), "hello"},
+		{"5:hello", new(mystring), mystring("hello")},
 		{"i3e", new(int64), int64(3)},
-		//{"i3e", new(uint), uint(3)}, // BUG
-		//{"i3e", new(int32), int32(3)}, // BUG
+		{"i3e", new(uint), uint(3)},
+		{"i3e", new(int32), int32(3)},
 		{"li3e4:boome", new([]interface{}), []interface{}{int64(3), "boom"}},
-		//{"de", new(interface{}), map[string]interface{}(nil)}, // BUG
+		{"le", new(interface{}), []interface{}(nil)},
+		{"de", new(interface{}), map[string]interface{}{}},
 		{"d5:helloi0ee", new(interface{}), map[string]interface{}{"hello": int64(0)}},
 		{"d5:hello5:worlde", new(map[string]interface{}), map[string]interface{}{"hello": "world"}},
 		{"d6:Ignore5:WORLD3:Pri3:!!!5:hello5:worlde", new(hello), hello{"world", "!!!", ""}},

@@ -132,10 +132,12 @@ var okInt = map[reflect.Kind]bool{
 	reflect.Complex64:  true,
 	reflect.Float64:    true,
 	reflect.Float32:    true,
+	reflect.Int:        true,
 	reflect.Int64:      true,
 	reflect.Int32:      true,
 	reflect.Int16:      true,
 	reflect.Int8:       true,
+	reflect.Uint:       true,
 	reflect.Uint64:     true,
 	reflect.Uint32:     true,
 	reflect.Uint16:     true,
@@ -155,7 +157,8 @@ func (dec *Decoder) nextInteger(val reflect.Value) error {
 	dec.pos++
 
 	typ := derefType(val.Type())
-	if ok := okInt[typ.Kind()] || isEmptyInterface(typ); !ok {
+	kind := typ.Kind()
+	if ok := okInt[kind] || isEmptyInterface(typ); !ok {
 		return fmt.Errorf("cannot decode integer to %T", val.Interface())
 	}
 
@@ -192,19 +195,40 @@ func (dec *Decoder) nextInteger(val reflect.Value) error {
 			return fmt.Errorf("leading zero")
 		}
 	}
-	x, err := strconv.ParseInt(intstr, 10, 64)
-	if err != nil {
-		return err
-	}
+	var bits int
 	if neg {
-		x = -x
+		intstr = "-" + intstr
 	}
-
-	val, _ = derefVal(val, true)
-	if typ.Kind() == reflect.Bool {
-		val.Set(reflect.ValueOf(x != 0))
-	} else {
+	if kind == reflect.Bool {
+		x, err := strconv.ParseUint(intstr, 10, 8)
+		if err != nil {
+			return err
+		}
+		val, _ = derefVal(val, true)
+		val.SetBool(x != 0)
+	} else if kind == reflect.Interface {
+		x, err := strconv.ParseInt(intstr, 10, 64)
+		if err != nil {
+			return err
+		}
+		val, _ = derefVal(val, true)
 		val.Set(reflect.ValueOf(x))
+	} else if intKind[kind] {
+		bits = typ.Bits()
+		x, err := strconv.ParseInt(intstr, 10, bits)
+		if err != nil {
+			return err
+		}
+		val, _ = derefVal(val, true)
+		val.SetInt(x)
+	} else if uintKind[kind] {
+		bits = typ.Bits()
+		x, err := strconv.ParseUint(intstr, 10, bits)
+		if err != nil {
+			return err
+		}
+		val, _ = derefVal(val, true)
+		val.SetUint(x)
 	}
 	return nil
 }
@@ -251,8 +275,10 @@ func (dec *Decoder) nextString(val reflect.Value) error {
 	val, _ = derefVal(val, true)
 	if byteslice {
 		val.Set(reflect.ValueOf([]byte(res)))
-	} else {
+	} else if typ.Kind() == reflect.Interface {
 		val.Set(reflect.ValueOf(res))
+	} else {
+		val.SetString(res)
 	}
 	return nil
 }
@@ -275,13 +301,11 @@ func (dec *Decoder) nextList(val reflect.Value) error {
 
 	val, _ = derefVal(val, true)
 	var sval reflect.Value
-	defer func() {
-		val.Set(sval)
-	}()
 	if emptyiface {
 		var s []interface{}
 		sval = reflect.Indirect(reflect.ValueOf(&s))
 		typ = sval.Type()
+		val.Set(sval)
 	} else {
 		sval = val
 	}
@@ -335,10 +359,16 @@ func (dec *Decoder) nextDict(val reflect.Value) error {
 	}
 	dec.pos++ //skip 'd'
 
-	var derref bool
+	var mval reflect.Value // a value that doesn't have an interface type
+	val, _ = derefVal(val, true)
+	if emptyiface {
+		mval = reflect.ValueOf(make(map[string]interface{}))
+		val.Set(mval)
+	} else {
+		mval = reflect.MakeMap(val.Type())
+		val.Set(mval)
+	}
 
-	// a value that definitely does not have an interface type
-	var mval reflect.Value
 	for {
 		if dec.pos >= len(dec.stream) {
 			return fmt.Errorf("unterminated dictionary")
@@ -356,17 +386,6 @@ func (dec *Decoder) nextDict(val reflect.Value) error {
 		err = dec.nextObject(elem)
 		if err != nil {
 			return err
-		}
-		if !derref {
-			derref = true
-			val, _ = derefVal(val, true)
-			if emptyiface {
-				mval = reflect.ValueOf(make(map[string]interface{}))
-				val.Set(mval)
-			} else {
-				mval = reflect.MakeMap(val.Type())
-				val.Set(mval)
-			}
 		}
 		mval.SetMapIndex(reflect.Indirect(key), reflect.Indirect(elem))
 	}
