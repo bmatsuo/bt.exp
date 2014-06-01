@@ -21,7 +21,7 @@ func NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{w}
 }
 
-//Marshal wrapps Encoder.Encode.
+//Marshal wraps Encoder.Encode.
 func Marshal(in interface{}) ([]byte, error) {
 	return encodeObject(in, false)
 }
@@ -30,13 +30,7 @@ type Marshaller interface {
 	MarshalBencoding() ([]byte, error)
 }
 
-//Encode encodes an object into a bencoded byte stream.
-//The result of the operation is accessible through Encoder.Bytes.
-//
-//Example:
-//	enc.Encode(23)
-//	enc.Encode("test")
-//	enc.Result //contains 'i23e4:test'
+//Encode bencodes an object and writes it to the underlying io.Writer.
 func (enc *Encoder) Encode(in interface{}) error {
 	p, err := encodeObject(in, false)
 	if err != nil {
