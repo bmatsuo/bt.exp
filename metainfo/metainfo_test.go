@@ -70,3 +70,88 @@ func TestBencoding(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkUnmarshal(b *testing.B) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		b.Fatalf("failed to determine working directory: %v", err)
+	}
+	allfiles, err := filepath.Glob(filepath.Join(cwd, "test", "torrents", "*"))
+	if err != nil {
+		b.Fatalf("failed to find test torrent files: %v", err)
+	}
+	type torrentBytes struct {
+		name string
+		p    []byte
+	}
+	torrents := make([]torrentBytes, 0, len(allfiles))
+	for _, name := range allfiles {
+		if filepath.Ext(name) == ".torrent" {
+			p, err := ioutil.ReadFile(name)
+			if err != nil {
+				b.Fatal(err)
+			}
+			name := filepath.Base(name)
+			torrents = append(torrents, torrentBytes{name, p})
+		}
+	}
+	b.ResetTimer()
+	var nbytes int64
+	for i := 0; i < b.N; i++ {
+		t := torrents[i%len(torrents)]
+		err := bencoding.Unmarshal(t.p, new(Metainfo))
+		if err != nil {
+			b.Fatal(err)
+		}
+		nbytes += int64(len(t.p))
+	}
+	b.StopTimer()
+	b.SetBytes(nbytes)
+}
+
+func BenchmarkMarshal(b *testing.B) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		b.Fatalf("failed to determine working directory: %v", err)
+	}
+	allfiles, err := filepath.Glob(filepath.Join(cwd, "test", "torrents", "*"))
+	if err != nil {
+		b.Fatalf("failed to find test torrent files: %v", err)
+	}
+	type torrent struct {
+		name string
+		meta *Metainfo
+	}
+	torrents := make([]torrent, 0, len(allfiles))
+	for _, name := range allfiles {
+		if filepath.Ext(name) == ".torrent" {
+			p, err := ioutil.ReadFile(name)
+			if err != nil {
+				b.Fatal(err)
+			}
+			meta := new(Metainfo)
+			err = bencoding.Unmarshal(p, meta)
+			if err != nil {
+				b.Fatal(name, err)
+			}
+			name := filepath.Base(name)
+			_, err = bencoding.Marshal(meta)
+			if err != nil {
+				b.Fatal(err)
+			}
+			torrents = append(torrents, torrent{name, meta})
+		}
+	}
+	b.ResetTimer()
+	var nbytes int64
+	for i := 0; i < b.N; i++ {
+		t := torrents[i%len(torrents)]
+		p, err := bencoding.Marshal(t.meta)
+		if err != nil {
+			b.Fatal(err)
+		}
+		nbytes += int64(len(p))
+	}
+	b.StopTimer()
+	b.SetBytes(nbytes)
+}
