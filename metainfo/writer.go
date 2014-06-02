@@ -165,7 +165,7 @@ func NewWriterSingle(plen int64, name string) (*Writer, error) {
 	}
 	t.mut.Lock()
 	defer t.mut.Unlock()
-	err = t.Open(name)
+	err = t.open([]string{name})
 	t.single = true
 	return t, nil
 }
@@ -179,9 +179,10 @@ func (t *Writer) nonnil() {
 // Open creates a new file entry in t.  Subsequent calls to Write increment
 // the file's length counter.
 func (t *Writer) Open(path ...string) error {
-	t.nonnil()
-	t.mut.Lock()
-	defer t.mut.Unlock()
+	return t.open(path)
+}
+
+func (t *Writer) open(path []string) error {
 	if t.closed {
 		return errClosed
 	}
